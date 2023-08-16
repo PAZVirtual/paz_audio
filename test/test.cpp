@@ -2,12 +2,7 @@
 #include <cmath>
 #include <thread>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846264338328
-#endif
-#ifndef M_SQRT1_2
-#define M_SQRT1_2 0.70710678118654752440084436210
-#endif
+static constexpr double SqrtHalf = 0.70710678118654752440084436210; // M_SQRT1_2
 
 static constexpr std::size_t SampleRate = 44'100;
 static constexpr double Amp = 0.35;
@@ -49,7 +44,7 @@ int main()
 
     paz::AudioEngine::Play(tracks[0], true);
     paz::AudioEngine::Play(tracks[1], true);
-    paz::AudioEngine::SetVolume(M_SQRT1_2);
+    paz::AudioEngine::SetVolume(SqrtHalf);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     paz::AudioEngine::SetVolume(1., 0);
@@ -64,7 +59,7 @@ int main()
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     paz::AudioEngine::Play(tracks[0], true);
-    paz::AudioEngine::SetVolume(M_SQRT1_2);
+    paz::AudioEngine::SetVolume(SqrtHalf);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     paz::AudioEngine::SetFreqScale(Ratios[2]/Ratios[0]);
