@@ -14,7 +14,7 @@ else
     INCLPATH := /usr/local/include
 endif
 CXXVER := 14
-OPTIM := fast
+OPTIM := 3
 ZIPNAME := $(PROJNAME)-$(OSPRETTY)
 CFLAGS := -O$(OPTIM) -Wall -Wextra -Wno-missing-braces
 ifeq ($(OSPRETTY), macOS)
