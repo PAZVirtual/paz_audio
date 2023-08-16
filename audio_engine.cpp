@@ -11,7 +11,7 @@
 
 static PaStream* Stream;
 static constexpr double SampleRate = 44'100;
-static constexpr unsigned long FramesPerBuf = 256;
+static constexpr unsigned long FramesPerBuf = 1024;
 static std::mutex Mx;
 static std::array<std::uint8_t, 2> MasterVol;
 static std::array<double, 2> MasterFreqScale = {1, 1};

@@ -7,18 +7,39 @@
 #endif
 
 static constexpr std::size_t SampleRate = 44'100;
-static constexpr double Amp = 0.15;
-static constexpr std::array<double, 3> Ratios = {1., 1.2, 1.5}; // Minor triad
+static constexpr double Amp = 0.25;
+static const std::array<double, 3> Ratios = {1., 1.1892, 1.4983}; // Minor triad
 
 int main()
 {
     std::vector<paz::AudioTrack> tracks;
+    // Triangle wave. Ensuring each track starts at zero prevents popping.
     for(auto n : Ratios)
     {
         std::vector<float> samples(100/n);
         for(std::size_t i = 0; i < samples.size(); ++i)
         {
-            samples[i] = Amp/n*std::sin(i*2.*M_PI/(samples.size() - 1));
+            const auto a = samples.size()/4;
+            const auto b = samples.size()/2;
+            const auto c = 3*samples.size()/4;
+            if(i < a)
+            {
+                samples[i] = static_cast<double>(i)/a;
+            }
+            else if(i < b)
+            {
+                samples[i] = 1. - static_cast<double>(i - a)/(b - a);
+            }
+            else if(i < c)
+            {
+                samples[i] = -static_cast<double>(i - b)/(c - b);
+            }
+            else
+            {
+                samples[i] = -1. + static_cast<double>(i - c)/(samples.size() -
+                    c);
+            }
+            samples[i] *= Amp/n;
         }
         tracks.emplace_back(samples);
     }
@@ -44,7 +65,7 @@ int main()
     paz::AudioEngine::SetVolume(1., 0);
     std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
-    paz::AudioEngine::SetFreqScale(1.5);
+    paz::AudioEngine::SetFreqScale(Ratios[2]/Ratios[0]);
     std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
     paz::AudioEngine::SetFreqScale(1.);
