@@ -10,7 +10,7 @@
 
 static PaStream* Stream;
 static constexpr double SampleRate = 44'100;
-static constexpr unsigned long FramesPerBuf = 256/4;
+static constexpr unsigned long FramesPerBuf = 256;
 static std::mutex Mx;
 static std::array<std::uint8_t, 2> MasterVol;
 // [samplesPtr, sampleIdx, loop]
@@ -139,11 +139,13 @@ void paz::AudioEngine::SetVolume(double vol, int ear)
     vol = std::max(0., std::min(1., vol));
     if(ear < 0)
     {
+        std::lock_guard<std::mutex> lk(Mx);
         MasterVol[0] = vol*255;
         MasterVol[1] = vol*255;
     }
     else if(ear == 0 || ear == 1)
     {
+        std::lock_guard<std::mutex> lk(Mx);
         MasterVol[ear] = vol*255;
     }
 }
