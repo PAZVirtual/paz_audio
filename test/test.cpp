@@ -44,6 +44,12 @@ int main()
     paz::AudioEngine::SetVolume(1., 0);
     std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
+    paz::AudioEngine::SetFreqScale(1.5);
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+    paz::AudioEngine::SetFreqScale(1.);
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
     paz::AudioEngine::SetVolume(0.);
     std::this_thread::sleep_for(std::chrono::seconds(1));
 }

@@ -7,14 +7,17 @@
 #endif
 #include <thread>
 #include <mutex>
+#include <cmath>
 
 static PaStream* Stream;
 static constexpr double SampleRate = 44'100;
 static constexpr unsigned long FramesPerBuf = 256;
 static std::mutex Mx;
 static std::array<std::uint8_t, 2> MasterVol;
-// [samplesPtr, sampleIdx, loop]
-static std::vector<std::tuple<std::uintptr_t, std::size_t, bool>> ActiveTracks;
+static std::array<double, 2> MasterFreqScale = {1, 1};
+// [samplesPtr, bufStartIndices, loop]
+static std::vector<std::tuple<std::uintptr_t, std::array<std::size_t, 2>, bool>>
+    ActiveTracks;
 
 static int audio_callback_stereo(const void*, void* outBuf, unsigned long
     framesPerBuffer, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags,
@@ -26,32 +29,15 @@ static int audio_callback_stereo(const void*, void* outBuf, unsigned long
     std::lock_guard<std::mutex> lk(Mx);
     for(unsigned long i = 0; i < framesPerBuffer; ++i)
     {
-        std::size_t j = 0;
-        while(j < ActiveTracks.size())
+        for(const auto& n : ActiveTracks)
         {
             const auto* samples = reinterpret_cast<const std::vector<float>*>(
-                std::get<0>(ActiveTracks[j]));
+                std::get<0>(n));
             for(int k = 0; k < 2; ++k)
             {
-                out[2*i + k] += (*samples)[std::get<1>(ActiveTracks[j])];
-            }
-            ++std::get<1>(ActiveTracks[j]);
-            if(std::get<1>(ActiveTracks[j]) == samples->size())
-            {
-                if(std::get<2>(ActiveTracks[j]))
-                {
-                    std::get<1>(ActiveTracks[j]) = 0;
-                    ++j;
-                }
-                else
-                {
-                    std::swap(ActiveTracks[j], ActiveTracks.back());
-                    ActiveTracks.pop_back();
-                }
-            }
-            else
-            {
-                ++j;
+                const std::size_t idx = std::round(std::get<1>(n)[k] + i*
+                    MasterFreqScale[k]);
+                out[2*i + k] += (*samples)[idx%samples->size()];
             }
         }
         for(int j = 0; j < 2; ++j)
@@ -66,6 +52,15 @@ static int audio_callback_stereo(const void*, void* outBuf, unsigned long
             }
             const float v = vol[j]/255.;
             out[2*i + j] = std::max(-1.f, std::min(1.f, out[2*i + j]*v*v));
+        }
+    }
+    for(auto& n : ActiveTracks)
+    {
+        for(int k = 0; k < 2; ++k)
+        {
+            std::get<1>(n)[k] = static_cast<std::size_t>(std::round(std::get<1>(
+                n)[k] + framesPerBuffer*MasterFreqScale[k]))%reinterpret_cast<
+                const std::vector<float>*>(std::get<0>(n))->size();
         }
     }
     return 0;
@@ -125,11 +120,13 @@ void paz::AudioEngine::Play(const paz::AudioTrack& track, bool loop)
 {
     init_audio();
 
+    if(!loop) throw std::logic_error("NOT IMPLEMENTED");
+
     std::thread([track, loop]()
     {
         std::lock_guard<std::mutex> lk(Mx);
         ActiveTracks.emplace_back(reinterpret_cast<std::uintptr_t>(track.
-            _samples.get()), 0, loop);
+            _samples.get()), std::array<std::size_t, 2>{}, loop);
     }
     ).detach();
 }
@@ -147,5 +144,20 @@ void paz::AudioEngine::SetVolume(double vol, int ear)
     {
         std::lock_guard<std::mutex> lk(Mx);
         MasterVol[ear] = vol*255;
+    }
+}
+
+void paz::AudioEngine::SetFreqScale(double scale, int ear)
+{
+    if(ear < 0)
+    {
+        std::lock_guard<std::mutex> lk(Mx);
+        MasterFreqScale[0] = scale;
+        MasterFreqScale[1] = scale;
+    }
+    else if(ear == 0 || ear == 1)
+    {
+        std::lock_guard<std::mutex> lk(Mx);
+        MasterFreqScale[ear] = scale;
     }
 }
