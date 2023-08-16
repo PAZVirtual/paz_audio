@@ -10,23 +10,20 @@ namespace paz
 {
     class AudioTrack
     {
-//        friend class AudioEngine;
-public:
+        friend class AudioEngine;
 
-        std::vector<float> _samples;
-        std::size_t _sampleRate;
-        std::size_t _idx;
+        std::shared_ptr<std::vector<float>> _samples;
 
-//    public:
-        AudioTrack() = default;
-        AudioTrack(const std::vector<float>& samples, std::size_t sampleRate);
+    public:
+        AudioTrack();
+        AudioTrack(const std::vector<float>& samples);
     };
 
     class AudioEngine
     {
     public:
         AudioEngine() = delete;
-        static void Play(AudioTrack& track, bool loop = false);
+        static void Play(const AudioTrack& track, bool loop = false);
     };
 }
 

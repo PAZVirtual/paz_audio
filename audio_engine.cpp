@@ -1,22 +1,50 @@
 #include "PAZ_Audio"
 #include "audio_engine.hpp"
-#include "portaudio.h"
-#include <iostream>
+#include <portaudio.h>
+#include <thread>
+#include <mutex>
+
+static constexpr double SampleRate = 44'100.;
+static constexpr unsigned long FramesPerBuf = 256;
+static std::mutex Mx;
 
 static int audio_callback_stereo(const void* /* inBuf */, void* outBuf, unsigned
     long framesPerBuffer, const PaStreamCallbackTimeInfo* /* timeInfo */,
-    PaStreamCallbackFlags /* statusFlags */, void* data)
+    PaStreamCallbackFlags /* statusFlags */, void* inData)
 {
-    auto* track = static_cast<paz::AudioTrack*>(data);
+    std::lock_guard<std::mutex> lk(Mx);
+    auto* data = static_cast<paz::AudioData*>(inData);
     auto* out = static_cast<float*>(outBuf);
-    for(decltype(framesPerBuffer) i = 0; i < framesPerBuffer; ++i)
+    for(unsigned long i = 0; i < framesPerBuffer; ++i)
     {
-        out[2*i + 0] = track->_samples[track->_idx]; // Left
-        out[2*i + 1] = track->_samples[track->_idx]; // Right
-        track->_idx = (track->_idx + 1)%track->_samples.size();
+        if(data->samples && data->idx < data->samples->size())
+        {
+            out[2*i + 0] = (*data->samples)[data->idx]; // Left
+            out[2*i + 1] = (*data->samples)[data->idx]; // Right
+            ++data->idx;
+            if(data->loop)
+            {
+                data->idx %= data->samples->size();
+            }
+            else
+            {
+                if(data->idx == data->samples->size())
+                {
+                    data->samples.reset();
+                }
+            }
+        }
+        else
+        {
+            out[2*i + 0] = 0;
+            out[2*i + 1] = 0;
+        }
     }
     return 0;
 }
+
+static PaStream* Stream;
+static paz::AudioData Data;
 
 paz::AudioInitializer& paz::init_audio()
 {
@@ -26,59 +54,51 @@ paz::AudioInitializer& paz::init_audio()
 
 paz::AudioInitializer::AudioInitializer()
 {
-    const auto err = Pa_Initialize();
-    if(err != paNoError)
+    PaError error;
+
+    error = Pa_Initialize();
+    if(error != paNoError)
     {
         throw std::runtime_error("Failed to initialize PortAudio: " + std::
-            string(Pa_GetErrorText(err)));
+            string(Pa_GetErrorText(error)));
+    }
+
+    error = Pa_OpenDefaultStream(&Stream, 0, 2, paFloat32, SampleRate,
+        FramesPerBuf, audio_callback_stereo, &Data);
+    if(error != paNoError)
+    {
+        throw std::runtime_error("Failed to open audio stream: " + std::string(
+            Pa_GetErrorText(error)));
+    }
+
+    error = Pa_StartStream(Stream);
+    if(error != paNoError)
+    {
+        throw std::runtime_error("Failed to start audio stream: " + std::string(
+            Pa_GetErrorText(error)));
     }
 }
 
 paz::AudioInitializer::~AudioInitializer()
 {
+    Pa_StopStream(Stream);
+    Pa_CloseStream(Stream);
     Pa_Terminate();
 }
 
-static std::vector<PaStream*> Streams;
-
-void paz::AudioEngine::Play(paz::AudioTrack& track, bool /* loop */)
+void paz::AudioEngine::Play(const paz::AudioTrack& track, bool loop)
 {
     init_audio();
 
-    if(track._samples.empty())
+    std::thread thread([track, loop]()
     {
-        return;
-    }
+        std::lock_guard<std::mutex> lk(Mx);
 
-    track._idx = 0;
-
-    Streams.emplace_back();
-    {
-        const auto err = Pa_OpenDefaultStream(&Streams.back(),
-                                0,          /* no input channels */
-                                2,          /* stereo output */
-                                paFloat32,  /* 32 bit floating point output */
-                                track._sampleRate,
-                                256,        /* frames per buffer */
-                                audio_callback_stereo,
-                                &track);
-        if( err != paNoError ) throw std::runtime_error("A");
+        Data.idx = 0;
+        Data.samples = track._samples;
+        Data.loop = loop;
     }
+    );
 
-    {
-        const auto err = Pa_StartStream(Streams.back());
-        if( err != paNoError ) throw std::runtime_error("B");
-    }
-
-    Pa_Sleep(1000);
-
-    {
-        const auto err = Pa_StopStream(Streams.back());
-        if( err != paNoError ) throw std::runtime_error("C");
-    }
-    {
-        const auto err = Pa_CloseStream(Streams.back());
-        if( err != paNoError ) throw std::runtime_error("D");
-    }
-    Streams.pop_back();
+    thread.detach();
 }
