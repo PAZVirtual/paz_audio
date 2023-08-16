@@ -8,47 +8,58 @@
 #include <thread>
 #include <mutex>
 
-static constexpr double SampleRate = 44'100.;
+static PaStream* Stream;
+static constexpr double SampleRate = 44'100;
 static constexpr unsigned long FramesPerBuf = 256;
 static std::mutex Mx;
+static double MasterVol = 1;
+// [samplesPtr, sampleIdx, loop]
+static std::vector<std::tuple<std::uintptr_t, std::size_t, bool>> ActiveTracks;
 
-static int audio_callback_stereo(const void* /* inBuf */, void* outBuf, unsigned
-    long framesPerBuffer, const PaStreamCallbackTimeInfo* /* timeInfo */,
-    PaStreamCallbackFlags /* statusFlags */, void* inData)
+static int audio_callback_stereo(const void*, void* outBuf, unsigned long
+    framesPerBuffer, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags,
+    void*)
 {
     std::lock_guard<std::mutex> lk(Mx);
-    auto* data = static_cast<paz::AudioData*>(inData);
     auto* out = static_cast<float*>(outBuf);
+    std::fill(out, out + 2*framesPerBuffer, 0);
     for(unsigned long i = 0; i < framesPerBuffer; ++i)
     {
-        if(data->samples && data->idx < data->samples->size())
+        std::size_t j = 0;
+        while(j < ActiveTracks.size())
         {
-            out[2*i + 0] = (*data->samples)[data->idx]; // Left
-            out[2*i + 1] = (*data->samples)[data->idx]; // Right
-            ++data->idx;
-            if(data->loop)
+            const auto* samples = reinterpret_cast<const std::vector<float>*>(
+                std::get<0>(ActiveTracks[j]));
+            for(int k = 0; k < 2; ++k)
             {
-                data->idx %= data->samples->size();
+                out[2*i + k] += (*samples)[std::get<1>(ActiveTracks[j])];//*std::get<3>(ActiveTracks[j])[k];
+            }
+            ++std::get<1>(ActiveTracks[j]);
+            if(std::get<1>(ActiveTracks[j]) == samples->size())
+            {
+                if(std::get<2>(ActiveTracks[j]))
+                {
+                    std::get<1>(ActiveTracks[j]) = 0;
+                    ++j;
+                }
+                else
+                {
+                    std::swap(ActiveTracks[j], ActiveTracks.back());
+                    ActiveTracks.pop_back();
+                }
             }
             else
             {
-                if(data->idx == data->samples->size())
-                {
-                    data->samples.reset();
-                }
+                ++j;
             }
         }
-        else
+        for(int j = 0; j < 2; ++j)
         {
-            out[2*i + 0] = 0;
-            out[2*i + 1] = 0;
+            out[2*i + j] = std::max(-1., std::min(1., out[2*i + j]*MasterVol));
         }
     }
     return 0;
 }
-
-static PaStream* Stream;
-static paz::AudioData Data;
 
 paz::AudioInitializer& paz::init_audio()
 {
@@ -78,7 +89,7 @@ paz::AudioInitializer::AudioInitializer()
     }
 
     error = Pa_OpenDefaultStream(&Stream, 0, 2, paFloat32, SampleRate,
-        FramesPerBuf, audio_callback_stereo, &Data);
+        FramesPerBuf, audio_callback_stereo, nullptr);
     if(error != paNoError)
     {
         throw std::runtime_error("Failed to open audio stream: " + std::string(
@@ -104,15 +115,11 @@ void paz::AudioEngine::Play(const paz::AudioTrack& track, bool loop)
 {
     init_audio();
 
-    std::thread thread([track, loop]()
+    std::thread([track, loop]()
     {
         std::lock_guard<std::mutex> lk(Mx);
-
-        Data.idx = 0;
-        Data.samples = track._samples;
-        Data.loop = loop;
+        ActiveTracks.emplace_back(reinterpret_cast<std::uintptr_t>(track.
+            _samples.get()), 0, loop);
     }
-    );
-
-    thread.detach();
+    ).detach();
 }
