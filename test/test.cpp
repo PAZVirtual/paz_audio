@@ -5,9 +5,12 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846264338328
 #endif
+#ifndef M_SQRT1_2
+#define M_SQRT1_2 0.70710678118654752440084436210
+#endif
 
 static constexpr std::size_t SampleRate = 44'100;
-static constexpr double Amp = 0.25;
+static constexpr double Amp = 0.35;
 static const std::array<double, 3> Ratios = {1., 1.1892, 1.4983}; // Minor triad
 
 int main()
@@ -48,9 +51,10 @@ int main()
 
     paz::AudioEngine::Play(tracks[0], true);
     paz::AudioEngine::Play(tracks[1], true);
-    paz::AudioEngine::SetVolume(1.);
+    paz::AudioEngine::SetVolume(M_SQRT1_2);
     std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
+    paz::AudioEngine::SetVolume(1., 0);
     paz::AudioEngine::SetVolume(0., 1);
     std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
@@ -62,7 +66,7 @@ int main()
     std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
     paz::AudioEngine::Play(tracks[0], true);
-    paz::AudioEngine::SetVolume(1., 0);
+    paz::AudioEngine::SetVolume(M_SQRT1_2);
     std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
     paz::AudioEngine::SetFreqScale(Ratios[2]/Ratios[0]);

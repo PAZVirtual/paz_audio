@@ -137,13 +137,13 @@ void paz::AudioEngine::SetVolume(double vol, int ear)
     if(ear < 0)
     {
         std::lock_guard<std::mutex> lk(Mx);
-        MasterVol[0] = vol*255;
-        MasterVol[1] = vol*255;
+        MasterVol[0] = std::round(vol*255.);
+        MasterVol[1] = std::round(vol*255.);
     }
     else if(ear == 0 || ear == 1)
     {
         std::lock_guard<std::mutex> lk(Mx);
-        MasterVol[ear] = vol*255;
+        MasterVol[ear] = std::round(vol*255.);
     }
 }
 
