@@ -2,4 +2,6 @@
 *.a
 *.exe
 *.zip
+*_arm64
+*_x86_64
 test/test

@@ -1,4 +1,7 @@
 PROJNAME := PAZ_Audio
+CXXVER := 17
+MINMACOSVER := 10.11
+
 LIBNAME := $(shell echo $(PROJNAME) | sed 's/_//g' | tr '[:upper:]' '[:lower:]')
 ifeq ($(OS), Windows_NT)
     LIBPATH := /mingw64/lib
@@ -13,13 +16,12 @@ else
     LIBPATH := /usr/local/lib
     INCLPATH := /usr/local/include
 endif
-CXXVER := 17
 OPTIM := 3
 ZIPNAME := $(PROJNAME)-$(OSPRETTY)
 ZIPCONTENTS := $(PROJNAME) lib$(LIBNAME).a
 CFLAGS := -O$(OPTIM) -Wall -Wextra -Wno-missing-braces
 ifeq ($(OSPRETTY), macOS)
-    CFLAGS += -mmacosx-version-min=10.11 -Wunguarded-availability
+    CFLAGS += -mmacosx-version-min=$(MINMACOSVER) -Wunguarded-availability
 else
     ifeq ($(OSPRETTY), Windows)
         CFLAGS += -Wno-cast-function-type
