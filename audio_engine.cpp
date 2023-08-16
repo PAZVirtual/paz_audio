@@ -101,6 +101,18 @@ paz::AudioInitializer::AudioInitializer()
             string(Pa_GetErrorText(error)));
     }
 
+
+    const auto numDevices = Pa_GetDeviceCount();
+    if(numDevices < 0)
+    {
+        throw std::runtime_error("Failed to get number of audio devices: " +
+            std::string(Pa_GetErrorText(numDevices)));
+    }
+    if(!numDevices)
+    {
+        throw std::runtime_error("No audio devices found.");
+    }
+
     error = Pa_OpenDefaultStream(&Stream, 0, 2, paFloat32, SampleRate,
         FramesPerBuf, audio_callback_stereo, nullptr);
     if(error != paNoError)
