@@ -1,17 +1,28 @@
 #include "PAZ_Audio"
 #include "audio_engine.hpp"
 #include "detect_os.hpp"
+#ifdef PAZ_MACOS
+#include <CoreAudio/CoreAudio.h>
+#include <AudioUnit/AudioUnit.h>
+#else
 #include <portaudio.h>
 #ifdef PAZ_LINUX
 #include <alsa/error.h> // Just for error redirection below
+#endif
 #endif
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <cmath>
 
+#ifdef PAZ_MACOS
+static AudioComponent OutputComp;
+static AudioComponentInstance OutputInstance;
+#else
 static PaStream* Stream;
-static constexpr double SampleRate = 44'100;
+#endif
+
+static constexpr double SampleRate = 44'100.;
 static constexpr unsigned long FramesPerBuf = 1024;
 static std::mutex Mx;
 static std::condition_variable Cv;
@@ -22,12 +33,19 @@ static std::array<double, 2> MasterFreqScale = {1, 1};
 static std::vector<std::tuple<std::uintptr_t, std::array<std::size_t, 2>, bool>>
     ActiveTracks;
 
+#ifdef PAZ_MACOS
+static OSStatus audio_callback_stereo(void*, AudioUnitRenderActionFlags*, const
+    AudioTimeStamp*, UInt32, UInt32 framesPerBuffer, AudioBufferList* buffers)
+{
+    auto* out = static_cast<float*>(buffers->mBuffers[0].mData);
+#else
 static int audio_callback_stereo(const void*, void* outBuf, unsigned long
     framesPerBuffer, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags,
     void*)
 {
-    static std::array<std::uint8_t, 2> vol;
     auto* out = static_cast<float*>(outBuf);
+#endif
+    static std::array<std::uint8_t, 2> vol;
     std::fill(out, out + 2*framesPerBuffer, 0);
     std::lock_guard<std::mutex> lk(Mx);
     for(unsigned long i = 0; i < framesPerBuffer; ++i)
@@ -71,7 +89,11 @@ static int audio_callback_stereo(const void*, void* outBuf, unsigned long
         BufComplete = true;
         Cv.notify_all();
     }
+#ifdef PAZ_MACOS
+    return noErr;
+#else
     return 0;
+#endif
 }
 
 paz::AudioInitializer& paz::init_audio()
@@ -87,6 +109,55 @@ static void alsa_error_handler(const char*, int, const char*, int, const char*,
 
 paz::AudioInitializer::AudioInitializer()
 {
+#ifdef PAZ_MACOS
+    AudioComponentDescription desc;
+    desc.componentType = kAudioUnitType_Output;
+    desc.componentSubType = kAudioUnitSubType_DefaultOutput;
+    desc.componentFlags = 0;
+    desc.componentFlagsMask = 0;
+    desc.componentManufacturer = kAudioUnitManufacturer_Apple;
+
+    OutputComp = AudioComponentFindNext(nullptr, &desc);
+    if(!OutputComp || AudioComponentInstanceNew(OutputComp, &OutputInstance))
+    {
+        throw std::runtime_error("Failed to open default audio device.");
+    }
+
+    if(AudioUnitInitialize(OutputInstance))
+    {
+        throw std::runtime_error("Failed to initialize audio unit instance.");
+    }
+
+    AudioStreamBasicDescription streamFormat;
+    streamFormat.mSampleRate = SampleRate;
+    streamFormat.mFormatID = kAudioFormatLinearPCM;
+    streamFormat.mFormatFlags = kAudioFormatFlagIsFloat;
+    streamFormat.mFramesPerPacket = 1;
+    streamFormat.mChannelsPerFrame = 2;
+    streamFormat.mBitsPerChannel = 32;
+    streamFormat.mBytesPerPacket = 2*sizeof(float);
+    streamFormat.mBytesPerFrame = 2*sizeof(float);
+    if(AudioUnitSetProperty(OutputInstance, kAudioUnitProperty_StreamFormat,
+        kAudioUnitScope_Input, 0, &streamFormat, sizeof(streamFormat)))
+    {
+        throw std::runtime_error("Failed to set audio unit input property.");
+    }
+
+    AURenderCallbackStruct callback;
+    callback.inputProc = audio_callback_stereo;
+    if(AudioUnitSetProperty(OutputInstance,
+        kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0,
+        &callback, sizeof(AURenderCallbackStruct)))
+    {
+        throw std::runtime_error("Failed to attach an IOProc to the selected au"
+            "dio unit.");
+    }
+
+    if(AudioOutputUnitStart(OutputInstance))
+    {
+        throw std::runtime_error("Failed to start audio unit.");
+    }
+#else
 #ifdef PAZ_LINUX
     // Redirect ALSA output on PortAudio initialization.
     snd_lib_error_set_handler(alsa_error_handler);
@@ -100,7 +171,6 @@ paz::AudioInitializer::AudioInitializer()
         throw std::runtime_error("Failed to initialize PortAudio: " + std::
             string(Pa_GetErrorText(error)));
     }
-
 
     const auto numDevices = Pa_GetDeviceCount();
     if(numDevices < 0)
@@ -127,6 +197,7 @@ paz::AudioInitializer::AudioInitializer()
         throw std::runtime_error("Failed to start audio stream: " + std::string(
             Pa_GetErrorText(error)));
     }
+#endif
 
     // Wait for first buffer to be completed.
     {
@@ -137,9 +208,14 @@ paz::AudioInitializer::AudioInitializer()
 
 paz::AudioInitializer::~AudioInitializer()
 {
+#ifdef PAZ_MACOS
+    AudioOutputUnitStop(OutputInstance);
+    AudioComponentInstanceDispose(OutputInstance);
+#else
     Pa_StopStream(Stream);
     Pa_CloseStream(Stream);
     Pa_Terminate();
+#endif
 }
 
 void paz::AudioEngine::Play(const paz::AudioTrack& track, bool loop)

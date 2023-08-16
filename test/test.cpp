@@ -4,7 +4,6 @@
 
 static constexpr double SqrtHalf = 0.70710678118654752440084436210; // M_SQRT1_2
 
-static constexpr std::size_t SampleRate = 44'100;
 static constexpr double Amp = 0.35;
 static const std::array<double, 3> Ratios = {1., 1.1892, 1.4983}; // Minor triad
 

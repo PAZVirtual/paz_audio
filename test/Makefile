@@ -22,7 +22,7 @@ endif
 CXXFLAGS += -I..
 LDLIBS := ../libpazaudio.a
 ifeq ($(OSPRETTY), macOS)
-#    LDLIBS += -framework ??
+    LDLIBS += -framework CoreAudio -framework AudioUnit
 else
     LDLIBS += $(LIBPATH)/libportaudio.a
     ifeq ($(OSPRETTY), Linux)
