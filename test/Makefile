@@ -17,7 +17,7 @@ ifeq ($(OSPRETTY), macOS)
     CXXFLAGS += -mmacosx-version-min=$(MINMACOSVER) -Wunguarded-availability -Wno-string-plus-int
 else
     ifeq ($(OSPRETTY), Windows)
-        CXXFLAGS += -Wno-deprecated-copy -static
+        CXXFLAGS += -Wno-deprecated-copy
     endif
     CXXFLAGS += -pthread
 endif
@@ -30,7 +30,8 @@ else
     ifeq ($(OSPRETTY), Linux)
         LDLIBS += -lasound
     else
-        LDLIBS += -lwinmm -lole32 -lsetupapi
+        LDLIBS += $(LIBPATH)/libpthread.a -lwinmm -lole32 -lsetupapi
+        LDFLAGS += -static-libgcc -static-libstdc++
     endif
 endif
 
@@ -45,8 +46,8 @@ all: $(EXE)
 
 ifeq ($(OSPRETTY), macOS)
 %: %.cpp
-	$(CXX) -arch arm64 -o $@_arm64 $< $(CXXFLAGS) $(INCL) $(LDLIBS)
-	$(CXX) -arch x86_64 -o $@_x86_64 $< $(CXXFLAGS) $(INCL) $(LDLIBS)
+	$(CXX) -arch arm64 -o $@_arm64 $< $(CXXFLAGS) $(INCL) $(LDFLAGS) $(LDLIBS)
+	$(CXX) -arch x86_64 -o $@_x86_64 $< $(CXXFLAGS) $(INCL) $(LDFLAGS) $(LDLIBS)
 	lipo -create -output $@ $@_arm64 $@_x86_64
 endif
 
