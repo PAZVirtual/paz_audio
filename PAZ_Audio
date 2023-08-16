@@ -1,0 +1,33 @@
+#ifndef PAZ_AUDIO
+#define PAZ_AUDIO
+
+#include <iostream>
+#include <vector>
+#include <array>
+#include <memory>
+
+namespace paz
+{
+    class AudioTrack
+    {
+//        friend class AudioEngine;
+public:
+
+        std::vector<float> _samples;
+        std::size_t _sampleRate;
+        std::size_t _idx;
+
+//    public:
+        AudioTrack() = default;
+        AudioTrack(const std::vector<float>& samples, std::size_t sampleRate);
+    };
+
+    class AudioEngine
+    {
+    public:
+        AudioEngine() = delete;
+        static void Play(AudioTrack& track, bool loop = false);
+    };
+}
+
+#endif
