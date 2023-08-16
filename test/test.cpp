@@ -47,34 +47,32 @@ int main()
         tracks.emplace_back(samples);
     }
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
     paz::AudioEngine::Play(tracks[0], true);
     paz::AudioEngine::Play(tracks[1], true);
     paz::AudioEngine::SetVolume(M_SQRT1_2);
-    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     paz::AudioEngine::SetVolume(1., 0);
     paz::AudioEngine::SetVolume(0., 1);
-    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     paz::AudioEngine::Play(tracks[2], true);
-    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     paz::AudioEngine::SetVolume(1., 1);
     paz::AudioEngine::SetVolume(0., 0);
-    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     paz::AudioEngine::Play(tracks[0], true);
     paz::AudioEngine::SetVolume(M_SQRT1_2);
-    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     paz::AudioEngine::SetFreqScale(Ratios[2]/Ratios[0]);
-    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     paz::AudioEngine::SetFreqScale(1.);
-    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    paz::AudioEngine::SetVolume(0.);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    paz::AudioEngine::SetVolume(0.); //TEMP - audio engine should wait for stream to go to zero before terminating
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }

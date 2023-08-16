@@ -7,12 +7,15 @@
 #endif
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <cmath>
 
 static PaStream* Stream;
 static constexpr double SampleRate = 44'100;
 static constexpr unsigned long FramesPerBuf = 1024;
 static std::mutex Mx;
+static std::condition_variable Cv;
+static bool BufComplete;
 static std::array<std::uint8_t, 2> MasterVol;
 static std::array<double, 2> MasterFreqScale = {1, 1};
 // [samplesPtr, bufStartIndices, loop]
@@ -63,6 +66,11 @@ static int audio_callback_stereo(const void*, void* outBuf, unsigned long
                 const std::vector<float>*>(std::get<0>(n))->size();
         }
     }
+    if(!BufComplete)
+    {
+        BufComplete = true;
+        Cv.notify_all();
+    }
     return 0;
 }
 
@@ -106,6 +114,12 @@ paz::AudioInitializer::AudioInitializer()
     {
         throw std::runtime_error("Failed to start audio stream: " + std::string(
             Pa_GetErrorText(error)));
+    }
+
+    // Wait for first buffer to be completed.
+    {
+        std::unique_lock<std::mutex> lk(Mx);
+        Cv.wait(lk, [](){ return BufComplete; });
     }
 }
 
