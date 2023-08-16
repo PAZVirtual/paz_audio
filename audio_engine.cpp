@@ -123,3 +123,33 @@ void paz::AudioEngine::Play(const paz::AudioTrack& track, bool loop)
     }
     ).detach();
 }
+
+//TEMP - this won't work right if called repeatedly so fades overlap
+void paz::AudioEngine::SetVolume(double vol, double time)
+{
+    vol = std::min(1., vol);
+    if(time <= 0.)
+    {
+        MasterVol = std::min(vol, 1.);
+    }
+    else
+    {
+        std::thread([vol, time]()
+        {
+            const double startVol = MasterVol;
+            const auto startTime = std::chrono::steady_clock::now();
+            double t = 0;
+            while(t < time)
+            {
+                std::lock_guard<std::mutex> lk(Mx);
+                const double fac = t/time;
+                MasterVol = (1. - fac)*startVol + fac*vol;
+                const auto now = std::chrono::steady_clock::now();
+                t = std::chrono::duration_cast<std::chrono::milliseconds>(now -
+                    startTime).count()*1e-3;
+            }
+            MasterVol = vol;
+        }
+        ).detach();
+    }
+}
