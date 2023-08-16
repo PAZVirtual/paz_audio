@@ -10,9 +10,9 @@
 
 static PaStream* Stream;
 static constexpr double SampleRate = 44'100;
-static constexpr unsigned long FramesPerBuf = 256;
+static constexpr unsigned long FramesPerBuf = 256/4;
 static std::mutex Mx;
-static double MasterVol = 1;
+static std::array<std::uint8_t, 2> MasterVol;
 // [samplesPtr, sampleIdx, loop]
 static std::vector<std::tuple<std::uintptr_t, std::size_t, bool>> ActiveTracks;
 
@@ -20,9 +20,10 @@ static int audio_callback_stereo(const void*, void* outBuf, unsigned long
     framesPerBuffer, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags,
     void*)
 {
-    std::lock_guard<std::mutex> lk(Mx);
+    static std::array<std::uint8_t, 2> vol;
     auto* out = static_cast<float*>(outBuf);
     std::fill(out, out + 2*framesPerBuffer, 0);
+    std::lock_guard<std::mutex> lk(Mx);
     for(unsigned long i = 0; i < framesPerBuffer; ++i)
     {
         std::size_t j = 0;
@@ -32,7 +33,7 @@ static int audio_callback_stereo(const void*, void* outBuf, unsigned long
                 std::get<0>(ActiveTracks[j]));
             for(int k = 0; k < 2; ++k)
             {
-                out[2*i + k] += (*samples)[std::get<1>(ActiveTracks[j])];//*std::get<3>(ActiveTracks[j])[k];
+                out[2*i + k] += (*samples)[std::get<1>(ActiveTracks[j])];
             }
             ++std::get<1>(ActiveTracks[j]);
             if(std::get<1>(ActiveTracks[j]) == samples->size())
@@ -55,7 +56,16 @@ static int audio_callback_stereo(const void*, void* outBuf, unsigned long
         }
         for(int j = 0; j < 2; ++j)
         {
-            out[2*i + j] = std::max(-1., std::min(1., out[2*i + j]*MasterVol));
+            if(vol[j] < MasterVol[j])
+            {
+                ++vol[j];
+            }
+            else if(vol[j] > MasterVol[j])
+            {
+                --vol[j];
+            }
+            const float v = vol[j]/255.;
+            out[2*i + j] = std::max(-1.f, std::min(1.f, out[2*i + j]*v*v));
         }
     }
     return 0;
@@ -124,32 +134,16 @@ void paz::AudioEngine::Play(const paz::AudioTrack& track, bool loop)
     ).detach();
 }
 
-//TEMP - this won't work right if called repeatedly so fades overlap
-void paz::AudioEngine::SetVolume(double vol, double time)
+void paz::AudioEngine::SetVolume(double vol, int ear)
 {
-    vol = std::min(1., vol);
-    if(time <= 0.)
+    vol = std::max(0., std::min(1., vol));
+    if(ear < 0)
     {
-        MasterVol = std::min(vol, 1.);
+        MasterVol[0] = vol*255;
+        MasterVol[1] = vol*255;
     }
-    else
+    else if(ear == 0 || ear == 1)
     {
-        std::thread([vol, time]()
-        {
-            const double startVol = MasterVol;
-            const auto startTime = std::chrono::steady_clock::now();
-            double t = 0;
-            while(t < time)
-            {
-                std::lock_guard<std::mutex> lk(Mx);
-                const double fac = t/time;
-                MasterVol = (1. - fac)*startVol + fac*vol;
-                const auto now = std::chrono::steady_clock::now();
-                t = std::chrono::duration_cast<std::chrono::milliseconds>(now -
-                    startTime).count()*1e-3;
-            }
-            MasterVol = vol;
-        }
-        ).detach();
+        MasterVol[ear] = vol*255;
     }
 }

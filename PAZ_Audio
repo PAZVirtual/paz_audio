@@ -24,7 +24,7 @@ namespace paz
     public:
         AudioEngine() = delete;
         static void Play(const AudioTrack& track, bool loop = false);
-        static void SetVolume(double vol, double time = 0.);
+        static void SetVolume(double vol, int ear = -1);
     };
 }
 

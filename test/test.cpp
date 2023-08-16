@@ -22,13 +22,28 @@ int main()
         }
         tracks.emplace_back(samples);
     }
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
     paz::AudioEngine::Play(tracks[0], true);
     paz::AudioEngine::Play(tracks[1], true);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    paz::AudioEngine::SetVolume(1.);
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+    paz::AudioEngine::SetVolume(0., 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
     paz::AudioEngine::Play(tracks[2], true);
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+    paz::AudioEngine::SetVolume(1., 1);
+    paz::AudioEngine::SetVolume(0., 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
     paz::AudioEngine::Play(tracks[0], true);
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
-    paz::AudioEngine::SetVolume(0., 0.5);
-    std::this_thread::sleep_for(std::chrono::milliseconds(750));
+    paz::AudioEngine::SetVolume(1., 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+    paz::AudioEngine::SetVolume(0.);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 }
