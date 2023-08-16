@@ -15,7 +15,7 @@ ifeq ($(OSPRETTY), macOS)
     CXXFLAGS += -mmacosx-version-min=10.10
 else
     ifeq ($(OSPRETTY), Windows)
-        CXXFLAGS += -Wno-deprecated-copy -static -mwindows
+        CXXFLAGS += -Wno-deprecated-copy -static
     endif
     CXXFLAGS += -pthread
 endif
