@@ -26,7 +26,7 @@ ifeq ($(OSPRETTY), macOS)
 else
     LDLIBS += $(LIBPATH)/libportaudio.a
     ifeq ($(OSPRETTY), Linux)
-#        LDLIBS += -l??
+        LDLIBS += -lasound
     else
         LDLIBS += -lwinmm -lole32 -lsetupapi
     endif

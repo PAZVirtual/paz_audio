@@ -1,6 +1,10 @@
 #include "PAZ_Audio"
 #include "audio_engine.hpp"
+#include "detect_os.hpp"
 #include <portaudio.h>
+#ifdef PAZ_LINUX
+#include <alsa/error.h> // Just for error redirection below
+#endif
 #include <thread>
 #include <mutex>
 
@@ -52,8 +56,18 @@ paz::AudioInitializer& paz::init_audio()
     return initializer;
 }
 
+#ifdef PAZ_LINUX
+static void alsa_error_handler(const char*, int, const char*, int, const char*,
+    ...) {}
+#endif
+
 paz::AudioInitializer::AudioInitializer()
 {
+#ifdef PAZ_LINUX
+    // Redirect ALSA output on PortAudio initialization.
+    snd_lib_error_set_handler(alsa_error_handler);
+#endif
+
     PaError error;
 
     error = Pa_Initialize();
