@@ -51,5 +51,10 @@ ifeq ($(OSPRETTY), macOS)
 	lipo -create -output $@ $@_arm64 $@_x86_64
 endif
 
+ifeq ($(OSPRETTY), macOS)
+clean:
+	$(RM) $(EXE) $(foreach n,$(EXE),$n_arm64 $n_x86_64)
+else
 clean:
 	$(RM) $(EXE)
+endif
