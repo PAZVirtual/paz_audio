@@ -14,6 +14,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <cmath>
+#include <stdexcept>
 
 #ifdef PAZ_MACOS
 static AudioComponent OutputComp;

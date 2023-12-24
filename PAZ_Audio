@@ -1,7 +1,6 @@
 #ifndef PAZ_AUDIO
 #define PAZ_AUDIO
 
-#include <iostream>
 #include <vector>
 #include <array>
 #include <memory>
