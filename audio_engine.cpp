@@ -16,15 +16,17 @@
 #include <cmath>
 #include <stdexcept>
 
+static constexpr double SampleRate = 44'100.;
+#ifndef PAZ_MACOS
+static constexpr unsigned long FramesPerBuf = 1024;
+#endif
+
 #ifdef PAZ_MACOS
 static AudioComponent _outputComp;
 static AudioComponentInstance _outputInstance;
 #else
 static PaStream* _stream;
 #endif
-
-static constexpr double SampleRate = 44'100.;
-static constexpr unsigned long FramesPerBuf = 1024;
 
 static std::mutex _mx;
 static std::condition_variable _cv;
