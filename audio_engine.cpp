@@ -7,6 +7,7 @@
 #else
 #include <portaudio.h>
 #ifdef PAZ_LINUX
+#include <stdarg.h> // Some versions of error.h don't include this
 #include <alsa/error.h> // Just for error redirection below
 #endif
 #endif
