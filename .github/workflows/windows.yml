@@ -31,4 +31,4 @@ jobs:
           update: true
           install: make mingw-w64-x86_64-gcc mingw-w64-x86_64-portaudio
       - name: Build and Test
-        run: make
+        run: make -j
