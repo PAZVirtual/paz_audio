@@ -1,8 +1,7 @@
-name: MSYS2
+name: build
 on: [push, pull_request]
-
 jobs:
-  msys2-mingw64:
+  windows:
     runs-on: windows-latest
     defaults:
       run:
@@ -24,7 +23,7 @@ jobs:
       - name: Check Audio Device
         shell: powershell
         run: Get-CimInstance Win32_SoundDevice | fl *
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -32,3 +31,35 @@ jobs:
           install: make mingw-w64-x86_64-gcc mingw-w64-x86_64-portaudio
       - name: Build and Test
         run: make -j
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: libpazaudio.a
+  #macos: # HANGS ON TEST/TEST
+  #  runs-on: macos-latest
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #    - name: Build and Test
+  #      run: make -j
+  #    - uses: actions/upload-artifact@v4
+  #      with:
+  #        name: macos-build
+  #        path: libpazaudio.a
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: sudo apt install portaudio19-dev
+      - name: Simulate Audio Device
+        run: |
+          sudo apt install pulseaudio
+          pulseaudio --start
+      - name: Check Audio Device
+        run: pactl list short
+      - name: Build and Test
+        run: make -j
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: libpazaudio.a

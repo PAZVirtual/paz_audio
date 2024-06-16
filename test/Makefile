@@ -26,11 +26,20 @@ LDLIBS := ../libpazaudio.a
 ifeq ($(OSPRETTY), macOS)
     LDLIBS += -framework CoreAudio -framework AudioUnit
 else
-    LDLIBS += $(LIBPATH)/libportaudio.a
     ifeq ($(OSPRETTY), Linux)
-        LDLIBS += -lasound
+        # Try a few locations for PortAudio.
+        ifneq (, $(wildcard $(LIBPATH)/libportaudio.a))
+            LDLIBS += $(LIBPATH)/libportaudio.a
+        else ifneq (, $(wildcard /usr/lib/libportaudio.a))
+            LDLIBS += /usr/lib/libportaudio.a
+        else ifneq (, $(wildcard /usr/lib/x86_64-linux-gnu/libportaudio.a))
+            LDLIBS += /usr/lib/x86_64-linux-gnu/libportaudio.a
+        else
+            $(error Could not find "libportaudio.a".)
+        endif
+        LDLIBS += -lasound -ljack
     else
-        LDLIBS += $(LIBPATH)/libpthread.a -lwinmm -lole32 -lsetupapi
+        LDLIBS += $(LIBPATH)/libportaudio.a $(LIBPATH)/libpthread.a -lwinmm -lole32 -lsetupapi
         LDFLAGS += -static-libgcc -static-libstdc++
     endif
 endif
