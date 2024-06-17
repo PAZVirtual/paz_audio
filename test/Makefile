@@ -32,6 +32,8 @@ else
             LDLIBS += $(LIBPATH)/libportaudio.a
         else ifneq (, $(wildcard /usr/lib/libportaudio.a))
             LDLIBS += /usr/lib/libportaudio.a
+        else ifneq (, $(wildcard /usr/lib64/libportaudio.a))
+            LDLIBS += /usr/lib64/libportaudio.a
         else ifneq (, $(wildcard /usr/lib/x86_64-linux-gnu/libportaudio.a))
             LDLIBS += /usr/lib/x86_64-linux-gnu/libportaudio.a
         else
