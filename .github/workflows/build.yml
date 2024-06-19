@@ -50,7 +50,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Dependencies
-        run: sudo apt install portaudio19-dev
+        run: |
+          sudo apt update
+          sudo apt install portaudio19-dev
       - name: Simulate Audio Device
         run: |
           sudo apt install pulseaudio
